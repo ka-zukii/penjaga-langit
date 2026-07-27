@@ -82,7 +82,7 @@ export default function PenjagaLangitGame() {
         </p>
       </div>
 
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900/20 via-slate-950 to-slate-950 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-sky-900/20 via-slate-950 to-slate-950 pointer-events-none" />
 
       <div className="w-full max-w-5xl flex justify-between items-center px-2 z-10 shrink-0 h-8">
         <div className="flex items-center gap-1.5">
@@ -131,7 +131,7 @@ export default function PenjagaLangitGame() {
       </div>
 
       <div className="relative w-full max-w-5xl flex-1 flex items-center justify-center min-h-0 z-10 my-1">
-        <div className="relative w-full h-full max-h-full aspect-[16/9] border border-slate-700/60 rounded-xl overflow-hidden shadow-[0_0_40px_rgba(14,165,233,0.15)] bg-slate-900 flex items-center justify-center">
+        <div className="relative w-full h-full max-h-full aspect-video border border-slate-700/60 rounded-xl overflow-hidden shadow-[0_0_40px_rgba(14,165,233,0.15)] bg-slate-900 flex items-center justify-center">
           <canvas
             ref={canvasRef}
             width={800}

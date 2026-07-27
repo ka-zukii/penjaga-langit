@@ -3,59 +3,116 @@ export class AudioManager {
   private bossBgm: HTMLAudioElement | null = null;
   private victoryBgm: HTMLAudioElement | null = null;
   private currentAudio: HTMLAudioElement | null = null;
+
   private isMuted: boolean = false;
   private isInitialized: boolean = false;
-  private currentVolume: number = 0.4;
+  private targetVolume: number = 0.4;
+  private fadeInterval: NodeJS.Timeout | null = null;
 
   constructor(bgmSrc: string, bossBgmSrc: string, victorySrc: string) {
     if (typeof window !== "undefined") {
-      this.bgm = new Audio(bgmSrc);
-      this.bgm.loop = true;
-
-      this.bossBgm = new Audio(bossBgmSrc);
-      this.bossBgm.loop = true;
-
-      this.victoryBgm = new Audio(victorySrc);
-      this.victoryBgm.loop = true;
+      this.bgm = this.createAudio(bgmSrc);
+      this.bossBgm = this.createAudio(bossBgmSrc);
+      this.victoryBgm = this.createAudio(victorySrc);
 
       this.currentAudio = this.bgm;
       this.setVolume(0.4);
     }
   }
 
-  // HENTIKAN SEMUA AUDIO SECARA TOTAL & RESET TIME
-  stopAll() {
-    [this.bgm, this.bossBgm, this.victoryBgm].forEach((audio) => {
-      if (audio) {
-        audio.pause();
+  // HELPER UNTUK BIKIN AUDIO DENGAN SEAMLESS LOOPING HANDLER
+  private createAudio(src: string): HTMLAudioElement {
+    const audio = new Audio(src);
+    audio.preload = "auto";
+
+    // MENCEGAH JEDA DEVIASI DI AKHIR LAGU (SEAMLESS LOOP)
+    audio.addEventListener("timeupdate", () => {
+      const buffer = 0.15; // Detik sebelum lagu habis
+      if (audio.duration && audio.currentTime >= audio.duration - buffer) {
         audio.currentTime = 0;
+        audio.play().catch(() => {});
       }
     });
+
+    return audio;
   }
 
+  // FUNGSI GANTI BGM DENGAN EFEK CROSSFADE (SMOOTH TRANSITION)
+  private switchTrack(newAudio: HTMLAudioElement | null) {
+    if (!newAudio || this.currentAudio === newAudio) return;
+
+    const oldAudio = this.currentAudio;
+    this.currentAudio = newAudio;
+
+    // FADE OUT TRACK LAMA
+    if (oldAudio) {
+      this.fadeOut(oldAudio, () => {
+        oldAudio.pause();
+        oldAudio.currentTime = 0;
+      });
+    }
+
+    // FADE IN TRACK BARU
+    if (!this.isMuted) {
+      this.currentAudio.volume = 0;
+      this.currentAudio
+        .play()
+        .then(() => {
+          this.fadeIn(this.currentAudio!);
+        })
+        .catch(() => {
+          this.listenForFirstInteraction();
+        });
+    }
+  }
+
+  private fadeOut(audio: HTMLAudioElement, callback: () => void) {
+    let vol = audio.volume;
+    const fadeStep = 0.05;
+
+    const interval = setInterval(() => {
+      if (vol > fadeStep) {
+        vol -= fadeStep;
+        audio.volume = vol;
+      } else {
+        audio.volume = 0;
+        clearInterval(interval);
+        callback();
+      }
+    }, 30);
+  }
+
+  private fadeIn(audio: HTMLAudioElement) {
+    let vol = 0;
+    const fadeStep = 0.05;
+
+    const interval = setInterval(() => {
+      if (vol < this.targetVolume - fadeStep) {
+        vol += fadeStep;
+        audio.volume = vol;
+      } else {
+        audio.volume = this.targetVolume;
+        clearInterval(interval);
+      }
+    }, 30);
+  }
+
+  // FUNGSI UNTUK MEMANGGIL MUSIK SPESIFIK
   playNormalBGM() {
-    this.stopAll();
-    this.currentAudio = this.bgm;
-    this.setVolume(this.currentVolume);
-    this.play();
+    this.switchTrack(this.bgm);
   }
 
   playBossBGM() {
-    this.stopAll();
-    this.currentAudio = this.bossBgm;
-    this.setVolume(this.currentVolume);
-    this.play();
+    this.switchTrack(this.bossBgm);
   }
 
   playVictoryBGM() {
-    this.stopAll();
-    this.currentAudio = this.victoryBgm;
-    this.setVolume(this.currentVolume);
-    this.play();
+    this.switchTrack(this.victoryBgm);
   }
 
   play() {
     if (this.currentAudio && !this.isMuted) {
+      this.currentAudio.volume = this.targetVolume;
       this.currentAudio
         .play()
         .then(() => {
@@ -68,10 +125,10 @@ export class AudioManager {
   }
 
   setVolume(volume: number) {
-    this.currentVolume = Math.max(0, Math.min(1, volume));
-    if (this.bgm) this.bgm.volume = this.currentVolume;
-    if (this.bossBgm) this.bossBgm.volume = this.currentVolume;
-    if (this.victoryBgm) this.victoryBgm.volume = this.currentVolume;
+    this.targetVolume = Math.max(0, Math.min(1, volume));
+    if (this.currentAudio && !this.isMuted) {
+      this.currentAudio.volume = this.targetVolume;
+    }
   }
 
   private listenForFirstInteraction() {
@@ -88,10 +145,12 @@ export class AudioManager {
       }
       window.removeEventListener("click", handleInteraction);
       window.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
     };
 
     window.addEventListener("click", handleInteraction);
     window.addEventListener("keydown", handleInteraction);
+    window.addEventListener("touchstart", handleInteraction);
   }
 
   pause() {
@@ -100,15 +159,24 @@ export class AudioManager {
     }
   }
 
+  stopAll() {
+    [this.bgm, this.bossBgm, this.victoryBgm].forEach((audio) => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+  }
+
   stop() {
     this.stopAll();
   }
 
   setMute(mute: boolean) {
     this.isMuted = mute;
-    if (this.bgm) this.bgm.muted = mute;
-    if (this.bossBgm) this.bossBgm.muted = mute;
-    if (this.victoryBgm) this.victoryBgm.muted = mute;
+    [this.bgm, this.bossBgm, this.victoryBgm].forEach((audio) => {
+      if (audio) audio.muted = mute;
+    });
   }
 
   toggleMute() {
