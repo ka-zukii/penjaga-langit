@@ -3,7 +3,8 @@ export type GameStateUI =
   | "PLAYING"
   | "PAUSED"
   | "GAMEOVER"
-  | "SETTINGS";
+  | "SETTINGS"
+  | "HIGHSCORE";
 
 export type GameObject = {
   x: number;
@@ -30,3 +31,11 @@ export type Enemy = GameObject & {
 };
 
 export type Bullet = GameObject;
+
+export type ScoreEntry = {
+  id: string;
+  username: string;
+  score: number;
+  stage: number;
+  date: string;
+};
