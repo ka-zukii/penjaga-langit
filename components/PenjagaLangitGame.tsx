@@ -76,7 +76,7 @@ export default function PenjagaLangitGame() {
             </span>
           </div>
 
-          {/* IKON SUARA & CREDITS DIPINDAHKAN KE HEADER ATAS AGAR TIDAK NABRAK D-PAD */}
+          {/* IKON SUARA & CREDITS */}
           <div className="flex items-center gap-2">
             <button
               onClick={toggleAudioMute}

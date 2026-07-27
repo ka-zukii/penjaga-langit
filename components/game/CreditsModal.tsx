@@ -19,7 +19,7 @@ export function CreditsModal({ onClose }: { onClose: () => void }) {
         <h3 className="text-2xl font-black text-white">CREDITS</h3>
         <div className="text-sm text-slate-300 flex flex-col gap-1 my-2">
           <p>
-            <b>Pengembang:</b> Tim Penjaga Langit
+            <b>Pengembang:</b> Rizky Andika Sukma
           </p>
           <p>
             <b>Engine:</b> Next.js & HTML5 Canvas
