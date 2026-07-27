@@ -32,6 +32,16 @@ export type Enemy = GameObject & {
 
 export type Bullet = GameObject;
 
+export type Explosion = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  currentFrame: number;
+  lastFrameTime: number;
+  frameDuration: number;
+};
+
 export type ScoreEntry = {
   id: string;
   username: string;

@@ -1,4 +1,4 @@
-import { Bullet, Enemy, GameStateUI, Player } from "@/types/game";
+import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
 
 type StageState = {
   currentStage: number;
@@ -21,6 +21,7 @@ export function updateGameLogic(
   playerBulletsRef: { current: Bullet[] },
   enemyBulletsRef: { current: Bullet[] },
   enemiesRef: { current: Enemy[] },
+  explosionsRef: { current: Explosion[] },
   keys: { [key: string]: boolean },
   settingsRef: { current: GameSettings },
   stageRef: { current: StageState },
@@ -148,6 +149,17 @@ export function updateGameLogic(
         e.hp -= 1;
 
         if (e.hp <= 0) {
+          // SPAWN EFEK LEDAKAN
+          explosionsRef.current.push({
+            x: e.x + e.width / 2,
+            y: e.y + e.height / 2,
+            width: e.type === "BOSS" ? 140 : 65,
+            height: e.type === "BOSS" ? 140 : 65,
+            currentFrame: 0,
+            lastFrameTime: now,
+            frameDuration: 40,
+          });
+
           enemiesRef.current.splice(eIdx, 1);
           gameState.current.score +=
             e.type === "BOSS" ? 200 : e.type === "KAMIKAZE" ? 25 : 10;
@@ -197,6 +209,16 @@ export function updateGameLogic(
       player.y + player.height > e.y;
 
     if (hitPlayer) {
+      explosionsRef.current.push({
+        x: e.x + e.width / 2,
+        y: e.y + e.height / 2,
+        width: 65,
+        height: 65,
+        currentFrame: 0,
+        lastFrameTime: now,
+        frameDuration: 40,
+      });
+
       if (e.type !== "BOSS") enemiesRef.current.splice(eIdx, 1);
       player.hp -= e.type === "KAMIKAZE" ? 2 : 1;
       callbacks.setPlayerHp(player.hp);
@@ -217,13 +239,24 @@ export function updateGameLogic(
     }
   });
 
+  // UPDATE FRAME LEDAKAN
+  explosionsRef.current.forEach((exp) => {
+    if (now - exp.lastFrameTime > exp.frameDuration) {
+      exp.currentFrame += 1;
+      exp.lastFrameTime = now;
+    }
+  });
+  explosionsRef.current = explosionsRef.current.filter(
+    (exp) => exp.currentFrame < 9,
+  );
+
   if (player.hp <= 0) {
     gameState.current.mode = "GAMEOVER";
     callbacks.setGameMode("GAMEOVER");
   }
 }
 
-// 🎬 CINEMATIC AUTOPILOT UNTUK BACKGROUND LEADERBOARD
+// 🎬 AUTOPILOT CINEMATIC BACKGROUND UNTUK LEADERBOARD
 export function updateAutopilotLogic(
   timestamp: number,
   canvasWidth: number,
@@ -232,17 +265,17 @@ export function updateAutopilotLogic(
   playerBulletsRef: { current: Bullet[] },
   enemyBulletsRef: { current: Bullet[] },
   enemiesRef: { current: Enemy[] },
+  explosionsRef: { current: Explosion[] },
   lastShotTimeRef: { current: number },
 ) {
   const player = playerRef.current;
+  const now = Date.now();
 
-  // 1. Gerakan Pesawat Otomatis (Sine Wave Smooth Floating)
   const time = timestamp * 0.002;
   player.x = 80 + Math.sin(time * 0.5) * 15;
   player.y = canvasHeight / 2 - player.height / 2 + Math.sin(time) * 60;
   player.rotation = Math.cos(time) * 0.08;
 
-  // 2. Tembak Otomatis
   if (timestamp - lastShotTimeRef.current > 200) {
     playerBulletsRef.current.push({
       x: player.x + player.width - 10,
@@ -254,7 +287,6 @@ export function updateAutopilotLogic(
     lastShotTimeRef.current = timestamp;
   }
 
-  // 3. Spawn Musuh Dummy
   if (enemiesRef.current.length < 2 && Math.random() < 0.03) {
     enemiesRef.current.push({
       type: "NORMAL",
@@ -268,16 +300,13 @@ export function updateAutopilotLogic(
     });
   }
 
-  // 4. Update Peluru
   playerBulletsRef.current.forEach((b) => (b.x += b.speed));
   playerBulletsRef.current = playerBulletsRef.current.filter(
     (b) => b.x < canvasWidth,
   );
 
-  // 5. Update Musuh
   enemiesRef.current.forEach((e) => (e.x -= e.speed));
 
-  // 6. Collision: Peluru Player vs Musuh
   playerBulletsRef.current.forEach((b, bIdx) => {
     enemiesRef.current.forEach((e, eIdx) => {
       if (
@@ -286,11 +315,31 @@ export function updateAutopilotLogic(
         b.y < e.y + e.height &&
         b.y + b.height > e.y
       ) {
+        explosionsRef.current.push({
+          x: e.x + e.width / 2,
+          y: e.y + e.height / 2,
+          width: 65,
+          height: 65,
+          currentFrame: 0,
+          lastFrameTime: now,
+          frameDuration: 40,
+        });
+
         playerBulletsRef.current.splice(bIdx, 1);
         enemiesRef.current.splice(eIdx, 1);
       }
     });
   });
+
+  explosionsRef.current.forEach((exp) => {
+    if (now - exp.lastFrameTime > exp.frameDuration) {
+      exp.currentFrame += 1;
+      exp.lastFrameTime = now;
+    }
+  });
+  explosionsRef.current = explosionsRef.current.filter(
+    (exp) => exp.currentFrame < 9,
+  );
 
   enemiesRef.current = enemiesRef.current.filter((e) => e.x + e.width > 0);
   enemyBulletsRef.current = [];

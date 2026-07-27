@@ -6,6 +6,7 @@ export type GameAssets = {
   enemyImg: HTMLImageElement;
   kamikazeImg: HTMLImageElement;
   bossImg: HTMLImageElement;
+  explosionFrames: HTMLImageElement[];
 };
 
 export function loadGameAssets(): GameAssets {
@@ -30,6 +31,14 @@ export function loadGameAssets(): GameAssets {
   const bossImg = new Image();
   bossImg.src = "/images/boss.png";
 
+  // LOAD 9 FRAME LEDAKAN
+  const explosionFrames: HTMLImageElement[] = [];
+  for (let i = 1; i <= 9; i++) {
+    const img = new Image();
+    img.src = `/images/explosions/explosion_0${i}.png`;
+    explosionFrames.push(img);
+  }
+
   return {
     skyTopImg,
     sunImg,
@@ -38,5 +47,6 @@ export function loadGameAssets(): GameAssets {
     enemyImg,
     kamikazeImg,
     bossImg,
+    explosionFrames,
   };
 }

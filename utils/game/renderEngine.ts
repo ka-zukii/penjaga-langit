@@ -1,4 +1,4 @@
-import { Bullet, Enemy, GameStateUI, Player } from "@/types/game";
+import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
 import { ParallaxLayer } from "@/utils/ParallaxLayer";
 import { GameAssets } from "./assetLoader";
 
@@ -13,6 +13,7 @@ export function renderGame(
   playerBullets: Bullet[],
   enemyBullets: Bullet[],
   enemies: Enemy[],
+  explosions: Explosion[],
 ) {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -32,7 +33,7 @@ export function renderGame(
   // Parallax Layers
   layers.forEach((layer) => layer.draw(ctx, canvasWidth));
 
-  // Mode Menu/Settings Animation
+  // Mode Menu / Settings Animation
   if (mode === "MENU" || mode === "SETTINGS") {
     if (assets.playerImg.complete && assets.playerImg.naturalWidth !== 0) {
       ctx.save();
@@ -132,4 +133,18 @@ export function renderGame(
     );
     ctx.restore();
   }
+
+  // RENDER ANIMASI LEDAKAN
+  explosions.forEach((exp) => {
+    const frameImg = assets.explosionFrames[exp.currentFrame];
+    if (frameImg && frameImg.complete && frameImg.naturalWidth !== 0) {
+      ctx.drawImage(
+        frameImg,
+        exp.x - exp.width / 2,
+        exp.y - exp.height / 2,
+        exp.width,
+        exp.height,
+      );
+    }
+  });
 }

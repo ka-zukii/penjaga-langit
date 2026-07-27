@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bullet, Enemy, GameStateUI, Player } from "@/types/game";
+import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
 import { ParallaxLayer } from "@/utils/ParallaxLayer";
 import { AudioManager } from "@/utils/AudioManager";
 import { loadGameAssets } from "@/utils/game/assetLoader";
@@ -82,6 +82,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
   const playerBulletsRef = useRef<Bullet[]>([]);
   const enemyBulletsRef = useRef<Bullet[]>([]);
   const enemiesRef = useRef<Enemy[]>([]);
+  const explosionsRef = useRef<Explosion[]>([]);
   const lastShotTimeRef = useRef<number>(0);
 
   const openSettings = () => {
@@ -112,6 +113,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     playerBulletsRef.current = [];
     enemyBulletsRef.current = [];
     enemiesRef.current = [];
+    explosionsRef.current = [];
 
     setScore(0);
     setPlayerHp(3);
@@ -262,6 +264,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
           playerBulletsRef,
           enemyBulletsRef,
           enemiesRef,
+          explosionsRef,
           lastShotTimeRef,
         );
       } else if (
@@ -282,6 +285,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
           playerBulletsRef,
           enemyBulletsRef,
           enemiesRef,
+          explosionsRef,
           keys,
           settingsRef,
           stageRef,
@@ -310,6 +314,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
         playerBulletsRef.current,
         enemyBulletsRef.current,
         enemiesRef.current,
+        explosionsRef.current,
       );
 
       animationFrameId = requestAnimationFrame(gameLoop);
