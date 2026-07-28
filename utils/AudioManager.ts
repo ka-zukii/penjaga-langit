@@ -4,30 +4,44 @@ export class AudioManager {
   private victoryBgm: HTMLAudioElement | null = null;
   private currentAudio: HTMLAudioElement | null = null;
 
+  // SFX AUDIO ELEMENTS
+  private shootSfx: HTMLAudioElement | null = null;
+  private explosionSfx: HTMLAudioElement | null = null;
+  private playerHitSfx: HTMLAudioElement | null = null;
+
   private isMuted: boolean = false;
   private isInitialized: boolean = false;
   private targetVolume: number = 0.4;
-  private fadeInterval: NodeJS.Timeout | null = null;
+  private sfxVolume: number = 0.5;
 
-  constructor(bgmSrc: string, bossBgmSrc: string, victorySrc: string) {
+  constructor(
+    bgmSrc: string,
+    bossBgmSrc: string,
+    victorySrc: string,
+    shootSfxSrc?: string,
+    explosionSfxSrc?: string,
+    playerHitSfxSrc?: string,
+  ) {
     if (typeof window !== "undefined") {
       this.bgm = this.createAudio(bgmSrc);
       this.bossBgm = this.createAudio(bossBgmSrc);
       this.victoryBgm = this.createAudio(victorySrc);
+
+      if (shootSfxSrc) this.shootSfx = new Audio(shootSfxSrc);
+      if (explosionSfxSrc) this.explosionSfx = new Audio(explosionSfxSrc);
+      if (playerHitSfxSrc) this.playerHitSfx = new Audio(playerHitSfxSrc);
 
       this.currentAudio = this.bgm;
       this.setVolume(0.4);
     }
   }
 
-  // HELPER UNTUK BIKIN AUDIO DENGAN SEAMLESS LOOPING HANDLER
   private createAudio(src: string): HTMLAudioElement {
     const audio = new Audio(src);
     audio.preload = "auto";
 
-    // MENCEGAH JEDA DEVIASI DI AKHIR LAGU (SEAMLESS LOOP)
     audio.addEventListener("timeupdate", () => {
-      const buffer = 0.15; // Detik sebelum lagu habis
+      const buffer = 0.15;
       if (audio.duration && audio.currentTime >= audio.duration - buffer) {
         audio.currentTime = 0;
         audio.play().catch(() => {});
@@ -37,14 +51,38 @@ export class AudioManager {
     return audio;
   }
 
-  // FUNGSI GANTI BGM DENGAN EFEK CROSSFADE (SMOOTH TRANSITION)
+  // HELPER MEMAINKAN SFX TANPA DELAY
+  private playSfx(sfx: HTMLAudioElement | null, volumeMultiplier = 1) {
+    if (!sfx || this.isMuted) return;
+    try {
+      // Clone node agar suara yang sama bisa overlapping (misal tembakan beruntun)
+      const soundClone = sfx.cloneNode() as HTMLAudioElement;
+      soundClone.volume = Math.min(1, this.sfxVolume * volumeMultiplier);
+      soundClone.play().catch(() => {});
+    } catch (e) {
+      // Ignore audio play errors
+    }
+  }
+
+  // METHOD PEMANGGILAN EFEK SUARA (SFX)
+  playShoot() {
+    this.playSfx(this.shootSfx, 0.4); // Tembakan sedikit lebih lembut
+  }
+
+  playExplosion() {
+    this.playSfx(this.explosionSfx, 0.8);
+  }
+
+  playPlayerHit() {
+    this.playSfx(this.playerHitSfx, 1.0);
+  }
+
   private switchTrack(newAudio: HTMLAudioElement | null) {
     if (!newAudio || this.currentAudio === newAudio) return;
 
     const oldAudio = this.currentAudio;
     this.currentAudio = newAudio;
 
-    // FADE OUT TRACK LAMA
     if (oldAudio) {
       this.fadeOut(oldAudio, () => {
         oldAudio.pause();
@@ -52,7 +90,6 @@ export class AudioManager {
       });
     }
 
-    // FADE IN TRACK BARU
     if (!this.isMuted) {
       this.currentAudio.volume = 0;
       this.currentAudio
@@ -97,7 +134,6 @@ export class AudioManager {
     }, 30);
   }
 
-  // FUNGSI UNTUK MEMANGGIL MUSIK SPESIFIK
   playNormalBGM() {
     this.switchTrack(this.bgm);
   }
@@ -126,6 +162,7 @@ export class AudioManager {
 
   setVolume(volume: number) {
     this.targetVolume = Math.max(0, Math.min(1, volume));
+    this.sfxVolume = this.targetVolume;
     if (this.currentAudio && !this.isMuted) {
       this.currentAudio.volume = this.targetVolume;
     }

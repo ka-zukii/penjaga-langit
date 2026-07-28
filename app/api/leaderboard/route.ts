@@ -1,29 +1,44 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore";
 import { ScoreEntry } from "@/types/game";
 
-const filePath = path.join(process.cwd(), "data", "leaderboard.json");
-
-// Helper untuk membaca file JSON
-function getLeaderboard(): ScoreEntry[] {
-  try {
-    if (!fs.existsSync(filePath)) {
-      return [];
-    }
-    const fileData = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(fileData);
-  } catch (error) {
-    return [];
-  }
-}
-
-// GET: Ambil Daftar Leaderboard (Diurutkan berdasarkan Score Tertinggi)
+// GET: Ambil Top 10 Skor Tertinggi
 export async function GET() {
-  const data = getLeaderboard();
-  // Sortir dari skor tertinggi ke terendah, ambil Top 10
-  const sortedData = data.sort((a, b) => b.score - a.score).slice(0, 10);
-  return NextResponse.json(sortedData);
+  try {
+    const leaderboardRef = collection(db, "leaderboard");
+    // Query: urutkan dari score terbanyak, ambil top 10
+    const q = query(leaderboardRef, orderBy("score", "desc"), limit(10));
+    const querySnapshot = await getDocs(q);
+
+    const scores: ScoreEntry[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      scores.push({
+        id: doc.id,
+        username: data.username || "Anonymous",
+        score: data.score || 0,
+        stage: data.stage || 1,
+        date: data.date || new Date().toISOString().split("T")[0],
+      });
+    });
+
+    return NextResponse.json(scores);
+  } catch (error) {
+    console.error("Firebase GET Error:", error);
+    return NextResponse.json(
+      { message: "Gagal mengambil data skor" },
+      { status: 500 },
+    );
+  }
 }
 
 // POST: Simpan Skor Baru
@@ -39,25 +54,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const currentData = getLeaderboard();
-    const newEntry: ScoreEntry = {
-      id: Date.now().toString(),
-      username: username.trim().substring(0, 15), // Batasi max 15 karakter
+    const leaderboardRef = collection(db, "leaderboard");
+    const newDoc = await addDoc(leaderboardRef, {
+      username: username.trim().substring(0, 15),
       score: Number(score),
       stage: Number(stage),
       date: new Date().toISOString().split("T")[0],
-    };
-
-    currentData.push(newEntry);
-
-    // Simpan kembali ke file JSON
-    fs.writeFileSync(filePath, JSON.stringify(currentData, null, 2), "utf8");
+      createdAt: serverTimestamp(),
+    });
 
     return NextResponse.json({
-      message: "Skor berhasil disimpan!",
-      entry: newEntry,
+      message: "Skor berhasil disimpan ke Cloud!",
+      id: newDoc.id,
     });
   } catch (error) {
+    console.error("Firebase POST Error:", error);
     return NextResponse.json(
       { message: "Gagal menyimpan skor" },
       { status: 500 },

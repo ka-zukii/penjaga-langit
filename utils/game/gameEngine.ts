@@ -35,6 +35,9 @@ export function updateGameLogic(
     setIsBossStage: (isBoss: boolean) => void;
     setGameMode: (mode: GameStateUI) => void;
     playNormalBGM: () => void;
+    playShoot: () => void;
+    playExplosion: () => void;
+    playPlayerHit: () => void;
   },
 ) {
   const player = playerRef.current;
@@ -84,6 +87,9 @@ export function updateGameLogic(
       speed: 10,
     });
     lastShotTimeRef.current = timestamp;
+
+    // PLAY SFX SHOOT
+    callbacks.playShoot();
   }
 
   // 3. UPDATE POSITION BULLETS & ENEMIES
@@ -149,7 +155,7 @@ export function updateGameLogic(
         e.hp -= 1;
 
         if (e.hp <= 0) {
-          // SPAWN EFEK LEDAKAN
+          // SPAWN LEDAKAN & PLAY SFX EXPLOSION
           explosionsRef.current.push({
             x: e.x + e.width / 2,
             y: e.y + e.height / 2,
@@ -159,6 +165,7 @@ export function updateGameLogic(
             lastFrameTime: now,
             frameDuration: 40,
           });
+          callbacks.playExplosion();
 
           enemiesRef.current.splice(eIdx, 1);
           gameState.current.score +=
@@ -222,6 +229,9 @@ export function updateGameLogic(
       if (e.type !== "BOSS") enemiesRef.current.splice(eIdx, 1);
       player.hp -= e.type === "KAMIKAZE" ? 2 : 1;
       callbacks.setPlayerHp(player.hp);
+
+      // PLAY SFX PLAYER HIT
+      callbacks.playPlayerHit();
     }
   });
 
@@ -236,6 +246,9 @@ export function updateGameLogic(
       enemyBulletsRef.current.splice(ebIdx, 1);
       player.hp -= 1;
       callbacks.setPlayerHp(player.hp);
+
+      // PLAY SFX PLAYER HIT
+      callbacks.playPlayerHit();
     }
   });
 
@@ -256,7 +269,7 @@ export function updateGameLogic(
   }
 }
 
-// 🎬 AUTOPILOT CINEMATIC BACKGROUND UNTUK LEADERBOARD
+// AUTOPILOT CINEMATIC BACKGROUND
 export function updateAutopilotLogic(
   timestamp: number,
   canvasWidth: number,

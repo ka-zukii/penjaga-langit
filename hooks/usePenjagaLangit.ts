@@ -39,12 +39,16 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     isBossSpawned: false,
   });
 
+  // INITIALIZE AUDIO MANAGER WITH BGM & SFX
   const audioManagerRef = useRef<AudioManager | null>(null);
   if (!audioManagerRef.current && typeof window !== "undefined") {
     audioManagerRef.current = new AudioManager(
       "/audio/bgm.mp3",
       "/audio/boss_bgm.mp3",
       "/audio/victory_bgm.mp3",
+      "/audio/sfx/shoot.mp3",
+      "/audio/sfx/explosion.mp3", 
+      "/audio/sfx/player_hit.mp3",
     );
   }
 
@@ -299,6 +303,9 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
             setIsBossStage,
             setGameMode,
             playNormalBGM: () => audioManagerRef.current?.playNormalBGM(),
+            playShoot: () => audioManagerRef.current?.playShoot(),
+            playExplosion: () => audioManagerRef.current?.playExplosion(),
+            playPlayerHit: () => audioManagerRef.current?.playPlayerHit(),
           },
         );
       }
