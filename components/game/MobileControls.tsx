@@ -12,30 +12,35 @@ export function MobileControls({ gameMode }: MobileControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const touchIdRef = useRef<number | null>(null);
 
-  // State Posisi Knob Joystick (x, y)
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const checkTouch = () => {
-      setIsTouchDevice(
-        "ontouchstart" in window || navigator.maxTouchPoints > 0,
-      );
+      // Deteksi hanya untuk layar sentuh / mobile
+      const hasTouch =
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0 ||
+        (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+
+      setIsTouchDevice(hasTouch);
     };
+
     checkTouch();
+    window.addEventListener("resize", checkTouch);
+    return () => window.removeEventListener("resize", checkTouch);
   }, []);
 
+  // Jangan tampilkan jika bukan perangkat sentuh ATAU sedang di Desktop ATAU bukan mode bermain
   if (!isTouchDevice || (gameMode !== "PLAYING" && gameMode !== "PAUSED")) {
     return null;
   }
 
-  // Helper untuk mengirim event keyboard (WASD) ke Game Engine
   const setKeyState = (code: string, active: boolean) => {
     window.dispatchEvent(
       new KeyboardEvent(active ? "keydown" : "keyup", { code }),
     );
   };
 
-  // Logika Kalkulasi Pergerakan Joystick (360 / 8-Arah / Diagonal)
   const handleJoystickMove = (clientX: number, clientY: number) => {
     if (!joystickRef.current) return;
 
@@ -46,9 +51,8 @@ export function MobileControls({ gameMode }: MobileControlsProps) {
     const deltaX = clientX - centerX;
     const deltaY = clientY - centerY;
     const distance = Math.hypot(deltaX, deltaY);
-    const maxRadius = rect.width / 2 - 10;
+    const maxRadius = rect.width / 2 - 8;
 
-    // Batasi Knob agar tidak keluar dari lingkaran dasar Joystick
     const angle = Math.atan2(deltaY, deltaX);
     const clampedDistance = Math.min(distance, maxRadius);
     const knobX = Math.cos(angle) * clampedDistance;
@@ -56,14 +60,12 @@ export function MobileControls({ gameMode }: MobileControlsProps) {
 
     setKnobPos({ x: knobX, y: knobY });
 
-    // Deadzone (jarak minimal geser agar tidak terpicu tidak sengaja)
-    const deadzone = 12;
+    const deadzone = 8;
 
-    // Trigger Key Down/Up berdasarkan arah geser knob (Memungkinkan Serong!)
-    setKeyState("KeyW", deltaY < -deadzone); // Atas
-    setKeyState("KeyS", deltaY > deadzone); // Bawah
-    setKeyState("KeyA", deltaX < -deadzone); // Kiri
-    setKeyState("KeyD", deltaX > deadzone); // Kanan
+    setKeyState("KeyW", deltaY < -deadzone);
+    setKeyState("KeyS", deltaY > deadzone);
+    setKeyState("KeyA", deltaX < -deadzone);
+    setKeyState("KeyD", deltaX > deadzone);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -95,40 +97,38 @@ export function MobileControls({ gameMode }: MobileControlsProps) {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-40 select-none flex justify-between items-end p-3 sm:p-5">
-      {/* 🕹️ VIRTUAL JOYSTICK 8-ARAH (SERONG / DIAGONAL) */}
+    <div className="absolute inset-0 pointer-events-none z-40 select-none flex justify-between items-end p-2 sm:p-3 md:hidden">
+      {/* 🕹️ VIRTUAL JOYSTICK (KHUSUS MOBILE/TABLET) */}
       <div
         ref={joystickRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={resetJoystick}
         onTouchCancel={resetJoystick}
-        className="pointer-events-auto relative w-32 h-32 sm:w-36 sm:h-36 bg-slate-950/50 backdrop-blur-md rounded-full border-2 border-sky-500/40 flex items-center justify-center shadow-[0_0_20px_rgba(14,165,233,0.2)] touch-none"
+        className="pointer-events-auto relative w-20 h-20 sm:w-24 sm:h-24 bg-slate-950/20 backdrop-blur-[1px] rounded-full border border-sky-400/25 flex items-center justify-center touch-none active:bg-slate-950/30 transition-colors"
       >
-        {/* Ring Arah Panah Panduan */}
-        <div className="absolute inset-2 rounded-full border border-dashed border-sky-400/20 pointer-events-none" />
+        <div className="absolute inset-1.5 rounded-full border border-dashed border-sky-400/15 pointer-events-none" />
 
-        {/* Knob Yang Digeser Jempol */}
         <div
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-linear-to-br from-sky-400 to-blue-600 border-2 border-white shadow-[0_0_15px_rgba(56,189,248,0.6)] flex items-center justify-center transition-transform duration-75 pointer-events-none"
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-sky-500/40 border border-sky-300/60 shadow-[0_0_10px_rgba(56,189,248,0.2)] flex items-center justify-center transition-transform duration-75 pointer-events-none backdrop-blur-xs"
           style={{
             transform: `translate(${knobPos.x}px, ${knobPos.y}px)`,
           }}
         >
-          <div className="w-5 h-5 rounded-full bg-white/40 border border-white/60" />
+          <div className="w-3 h-3 rounded-full bg-white/50" />
         </div>
       </div>
 
-      {/* 🎯 TOMBOL TEMBAK SPASI (POJOK KANAN BAWAH) */}
-      <div className="pointer-events-auto mb-1 mr-1">
+      {/* 🎯 TOMBOL TEMBAK (KHUSUS MOBILE/TABLET) */}
+      <div className="pointer-events-auto mb-0.5 mr-0.5">
         <button
           onTouchStart={() => setKeyState("Space", true)}
           onTouchEnd={() => setKeyState("Space", false)}
           onMouseDown={() => setKeyState("Space", true)}
           onMouseUp={() => setKeyState("Space", false)}
-          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-red-500 to-red-700 active:from-red-400 active:to-red-600 backdrop-blur-md border-2 border-red-300 flex items-center justify-center text-white shadow-[0_0_25px_rgba(239,68,68,0.5)] active:scale-90 transition-all"
+          className="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-red-600/35 active:bg-red-500/60 backdrop-blur-[1px] border border-red-400/40 flex items-center justify-center text-white/80 active:text-white active:scale-90 transition-all shadow-sm"
         >
-          <LuCrosshair className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-md" />
+          <LuCrosshair className="w-5 h-5 sm:w-6 sm:h-6 drop-shadow-xs" />
         </button>
       </div>
     </div>
