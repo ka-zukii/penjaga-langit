@@ -10,63 +10,87 @@ export type GameAssets = {
   explosionFrames: HTMLImageElement[];
 };
 
-export function loadGameAssets(): GameAssets {
-  const skyTopImg = new Image();
-  skyTopImg.src = "/images/bg/sky_top.png";
+export function loadGameAssetsWithProgress(
+  onProgress: (percent: number) => void,
+): Promise<GameAssets> {
+  return new Promise((resolve) => {
+    const imagesToLoad: {
+      key: string;
+      src: string;
+      isVariant?: boolean;
+      index?: number;
+    }[] = [
+      { key: "skyTopImg", src: "/images/bg/sky_top.png" },
+      { key: "sunImg", src: "/images/bg/sun.png" },
+      { key: "playerImg", src: "/images/player.png" },
+      { key: "bulletImg", src: "/images/bullet.png" },
+      { key: "enemyImg", src: "/images/enemy.png" },
+      { key: "kamikazeImg", src: "/images/kamikaze.png" },
+      { key: "bossImg", src: "/images/boss.png" },
+    ];
 
-  const sunImg = new Image();
-  sunImg.src = "/images/bg/sun.png";
+    // 8 Varian Pesawat
+    const enemyVariantSources = [
+      "/images/enemies/plane_1_blue.png",
+      "/images/enemies/plane_1_pink.png",
+      "/images/enemies/plane_1_red.png",
+      "/images/enemies/plane_1_yellow.png",
+      "/images/enemies/plane_3_blue.png",
+      "/images/enemies/plane_3_green.png",
+      "/images/enemies/plane_3_red.png",
+      "/images/enemies/plane_3_yellow.png",
+    ];
 
-  const playerImg = new Image();
-  playerImg.src = "/images/player.png";
+    enemyVariantSources.forEach((src, idx) => {
+      imagesToLoad.push({
+        key: "enemyVariant",
+        src,
+        isVariant: true,
+        index: idx,
+      });
+    });
 
-  const bulletImg = new Image();
-  bulletImg.src = "/images/bullet.png";
+    // 9 Frame Ledakan
+    for (let i = 1; i <= 9; i++) {
+      imagesToLoad.push({
+        key: `explosion_${i}`,
+        src: `/images/explosions/explosion_0${i}.png`,
+      });
+    }
 
-  const enemyImg = new Image();
-  enemyImg.src = "/images/enemy.png";
+    const totalAssets = imagesToLoad.length;
+    let loadedAssets = 0;
 
-  const kamikazeImg = new Image();
-  kamikazeImg.src = "/images/kamikaze.png";
+    const assets: Partial<GameAssets> = {
+      enemyVariants: [],
+      explosionFrames: [],
+    };
 
-  const bossImg = new Image();
-  bossImg.src = "/images/boss.png";
+    imagesToLoad.forEach((item) => {
+      const img = new Image();
+      img.src = item.src;
 
-  // LOAD 8 VARIAN PESAWAT MUSUH
-  const enemyVariantSources = [
-    "/images/enemies/plane_1_blue.png",
-    "/images/enemies/plane_1_pink.png",
-    "/images/enemies/plane_1_red.png",
-    "/images/enemies/plane_1_yellow.png",
-    "/images/enemies/plane_3_blue.png",
-    "/images/enemies/plane_3_green.png",
-    "/images/enemies/plane_3_red.png",
-    "/images/enemies/plane_3_yellow.png",
-  ];
+      const handleLoad = () => {
+        loadedAssets++;
+        const percent = Math.floor((loadedAssets / totalAssets) * 100);
+        onProgress(percent);
 
-  const enemyVariants: HTMLImageElement[] = enemyVariantSources.map((src) => {
-    const img = new Image();
-    img.src = src;
-    return img;
+        if (item.isVariant) {
+          assets.enemyVariants![item.index!] = img;
+        } else if (item.key.startsWith("explosion_")) {
+          const idx = parseInt(item.key.split("_")[1]) - 1;
+          assets.explosionFrames![idx] = img;
+        } else {
+          (assets as Record<string, unknown>)[item.key] = img;
+        }
+
+        if (loadedAssets === totalAssets) {
+          resolve(assets as GameAssets);
+        }
+      };
+
+      img.onload = handleLoad;
+      img.onerror = handleLoad;
+    });
   });
-
-  // LOAD 9 FRAME LEDAKAN
-  const explosionFrames: HTMLImageElement[] = [];
-  for (let i = 1; i <= 9; i++) {
-    const img = new Image();
-    img.src = `/images/explosions/explosion_0${i}.png`;
-    explosionFrames.push(img);
-  }
-
-  return {
-    skyTopImg,
-    sunImg,
-    playerImg,
-    bulletImg,
-    enemyImg,
-    kamikazeImg,
-    bossImg,
-    enemyVariants,
-    explosionFrames,
-  };
 }

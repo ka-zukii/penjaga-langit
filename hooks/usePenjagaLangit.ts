@@ -2,13 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
 import { ParallaxLayer } from "@/utils/ParallaxLayer";
 import { AudioManager } from "@/utils/AudioManager";
-import { loadGameAssets } from "@/utils/game/assetLoader";
+import {
+  loadGameAssetsWithProgress,
+  GameAssets,
+} from "@/utils/game/assetLoader";
 import { updateGameLogic, updateAutopilotLogic } from "@/utils/game/gameEngine";
 import { renderGame } from "@/utils/game/renderEngine";
 
 export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // LOADING STATES (UNTUK PRELOADER ASSET)
+  const [isAssetsLoaded, setIsAssetsLoaded] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+
+  // GAME STATES
   const [score, setScore] = useState(0);
   const [playerHp, setPlayerHp] = useState(3);
   const [gameMode, setGameMode] = useState<GameStateUI>("MENU");
@@ -23,6 +31,8 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
   const [bgmVolume, setBgmVolumeState] = useState(40);
   const [controlType, setControlType] = useState<"WASD" | "ARROWS">("WASD");
   const [parallaxEnabled, setParallaxEnabled] = useState(true);
+
+  const assetsRef = useRef<GameAssets | null>(null);
 
   const settingsRef = useRef<{
     controlType: "WASD" | "ARROWS";
@@ -39,6 +49,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     isBossSpawned: false,
   });
 
+  // AUDIO MANAGER INITIALIZATION
   const audioManagerRef = useRef<AudioManager | null>(null);
   if (!audioManagerRef.current && typeof window !== "undefined") {
     audioManagerRef.current = new AudioManager(
@@ -50,21 +61,6 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
       "/audio/sfx/player_hit.mp3",
     );
   }
-
-  const setBgmVolume = (val: number) => {
-    setBgmVolumeState(val);
-    audioManagerRef.current?.setVolume(val / 100);
-  };
-
-  const updateControlType = (type: "WASD" | "ARROWS") => {
-    setControlType(type);
-    settingsRef.current.controlType = type;
-  };
-
-  const updateParallaxEnabled = (enabled: boolean) => {
-    setParallaxEnabled(enabled);
-    settingsRef.current.parallaxEnabled = enabled;
-  };
 
   const gameState = useRef<{ score: number; mode: GameStateUI }>({
     score: 0,
@@ -87,6 +83,22 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
   const enemiesRef = useRef<Enemy[]>([]);
   const explosionsRef = useRef<Explosion[]>([]);
   const lastShotTimeRef = useRef<number>(0);
+
+  // HANDLER PENGATURAN SUARA & KONTROL
+  const setBgmVolume = (val: number) => {
+    setBgmVolumeState(val);
+    audioManagerRef.current?.setVolume(val / 100);
+  };
+
+  const updateControlType = (type: "WASD" | "ARROWS") => {
+    setControlType(type);
+    settingsRef.current.controlType = type;
+  };
+
+  const updateParallaxEnabled = (enabled: boolean) => {
+    setParallaxEnabled(enabled);
+    settingsRef.current.parallaxEnabled = enabled;
+  };
 
   const openSettings = () => {
     gameState.current.mode = "SETTINGS";
@@ -159,9 +171,15 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    audioManagerRef.current?.play();
+    // PRELOAD GAMBAR DENGAN PROGRESS BAR
+    loadGameAssetsWithProgress((percent) => {
+      setLoadProgress(percent);
+    }).then((loadedAssets) => {
+      assetsRef.current = loadedAssets;
+      setIsAssetsLoaded(true);
+      audioManagerRef.current?.play();
+    });
 
-    const assets = loadGameAssets();
     const layers = [
       new ParallaxLayer(
         "/images/bg/farground_mountains.png",
@@ -200,6 +218,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
 
+    // PENAMBAHAN MUSUH DENGAN 8 VARIASI PESAWAT
     const spawnEnemyInterval = setInterval(() => {
       if (gameState.current.mode !== "PLAYING") return;
 
@@ -236,7 +255,6 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
       const isKamikaze = Math.random() < kamikazeChance;
       const speedMultiplier = 1 + currentStage * 0.04;
 
-      // SPAWN ENEMIES WITH RANDOM VARIANT INDEX (0 - 7)
       enemiesRef.current.push({
         type: isKamikaze ? "KAMIKAZE" : "NORMAL",
         x: canvas.width,
@@ -247,6 +265,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
         hp: isKamikaze ? 1 : 1 + Math.floor(currentStage / 4),
         maxHp: isKamikaze ? 1 : 1 + Math.floor(currentStage / 4),
         variantIndex: Math.floor(Math.random() * 8),
+        sineOffset: Math.random() * 100,
         lastShotTime: Date.now(),
       });
     }, 1200);
@@ -254,6 +273,12 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     let animationFrameId: number;
 
     const gameLoop = (timestamp: number) => {
+      // Tunggu hingga aset selesai dimuat
+      if (!assetsRef.current) {
+        animationFrameId = requestAnimationFrame(gameLoop);
+        return;
+      }
+
       if (settingsRef.current.parallaxEnabled) {
         layers.forEach((layer) => layer.update(canvas.width));
       }
@@ -315,7 +340,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
         ctx,
         canvas.width,
         canvas.height,
-        assets,
+        assetsRef.current,
         layers,
         gameState.current.mode,
         playerRef.current,
@@ -341,6 +366,8 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
 
   return {
     canvasRef,
+    isAssetsLoaded,
+    loadProgress,
     score,
     playerHp,
     gameMode,

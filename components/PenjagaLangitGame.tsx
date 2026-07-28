@@ -10,6 +10,7 @@ import {
   LuRotateCcw,
   LuMaximize,
   LuMinimize,
+  LuPlaneTakeoff,
 } from "react-icons/lu";
 
 import { GameHUD } from "./game/gameHUD";
@@ -23,6 +24,8 @@ import { HighScoreModal } from "./game/HighScoreModal";
 export default function PenjagaLangitGame() {
   const {
     canvasRef,
+    isAssetsLoaded, // <--- Tambahkan ini
+    loadProgress, // <--- Tambahkan ini
     score,
     playerHp,
     gameMode,
@@ -72,6 +75,7 @@ export default function PenjagaLangitGame() {
 
   return (
     <div className="relative w-screen h-dvh bg-slate-950 text-white font-sans p-1 sm:p-3 select-none overflow-hidden flex flex-col justify-between items-center">
+      {/* WARNING PORTRAIT */}
       <div className="fixed inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center p-6 text-center portrait:flex landscape:hidden">
         <LuRotateCcw className="w-12 h-12 text-sky-400 animate-spin mb-4" />
         <h3 className="text-xl font-black text-white mb-2">
@@ -84,6 +88,7 @@ export default function PenjagaLangitGame() {
 
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-sky-900/20 via-slate-950 to-slate-950 pointer-events-none" />
 
+      {/* TOP HEADER MENU */}
       <div className="w-full max-w-5xl flex justify-between items-center px-2 z-10 shrink-0 h-8">
         <div className="flex items-center gap-1.5">
           <span className="flex h-2 w-2 relative">
@@ -130,8 +135,45 @@ export default function PenjagaLangitGame() {
         </div>
       </div>
 
+      {/* CANVAS CONTAINER UTAMA */}
       <div className="relative w-full max-w-5xl flex-1 flex items-center justify-center min-h-0 z-10 my-1">
         <div className="relative w-full h-full max-h-full aspect-video border border-slate-700/60 rounded-xl overflow-hidden shadow-[0_0_40px_rgba(14,165,233,0.15)] bg-slate-900 flex items-center justify-center">
+          {/* LOADING SCREEN PRELOADER (TAMPIL PALING AWAL) */}
+          {!isAssetsLoaded && (
+            <div className="absolute inset-0 z-50 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-white select-none backdrop-blur-md">
+              <div className="absolute w-72 h-72 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Menggunakan Aset Gambar Pesawat Player dengan Efek Bouncing & Glow */}
+              <div className="relative z-10 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mb-3 animate-bounce">
+                <img
+                  src="/images/player.png"
+                  alt="Loading Plane"
+                  className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(56,189,248,0.8)]"
+                />
+              </div>
+
+              <h2 className="relative z-10 text-lg sm:text-xl font-black tracking-widest text-white uppercase mb-0.5">
+                PENJAGA LANGIT
+              </h2>
+              <p className="relative z-10 text-[10px] sm:text-xs text-sky-400 font-extrabold tracking-wider uppercase mb-5">
+                MEMUAT ASET GAME...
+              </p>
+
+              {/* Progress Bar Container */}
+              <div className="relative z-10 w-full max-w-xs h-3 bg-slate-900 border border-slate-800 rounded-full overflow-hidden p-0.5 shadow-inner">
+                <div
+                  className="h-full bg-linear-to-r from-sky-400 via-blue-500 to-sky-400 rounded-full transition-all duration-200 shadow-[0_0_12px_rgba(56,189,248,0.6)]"
+                  style={{ width: `${loadProgress}%` }}
+                />
+              </div>
+
+              <span className="relative z-10 text-xs font-black text-amber-400 tracking-wider mt-2">
+                {loadProgress}%
+              </span>
+            </div>
+          )}
+
+          {/* 2. CANVAS & OVERLAY MODAL LAINNYA */}
           <canvas
             ref={canvasRef}
             width={800}
