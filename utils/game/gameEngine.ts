@@ -41,8 +41,9 @@ export function updateGameLogic(
   },
 ) {
   const player = playerRef.current;
+  const currentStage = stageRef.current.currentStage;
 
-  // 1. MOVEMENT PLAYER
+  // 1. KONTROL GERAKAN PLAYER
   let targetRotation = 0;
   const isUp =
     settingsRef.current.controlType === "WASD" ? keys["KeyW"] : keys["ArrowUp"];
@@ -77,7 +78,7 @@ export function updateGameLogic(
   player.rotation = player.rotation || 0;
   player.rotation += (targetRotation - player.rotation) * 0.25;
 
-  // 2. SHOOTING PLAYER
+  // 2. TEMBAKAN PLAYER
   if (keys["Space"] && timestamp - lastShotTimeRef.current > shootCooldown) {
     playerBulletsRef.current.push({
       x: player.x + player.width - 10,
@@ -87,28 +88,37 @@ export function updateGameLogic(
       speed: 10,
     });
     lastShotTimeRef.current = timestamp;
-
-    // PLAY SFX SHOOT
     callbacks.playShoot();
   }
 
-  // 3. UPDATE POSITION BULLETS & ENEMIES
+  // 3. UPDATE POSISI PELURU PLAYER & PELURU MUSUH
   playerBulletsRef.current.forEach((b) => (b.x += b.speed));
   playerBulletsRef.current = playerBulletsRef.current.filter(
     (b) => b.x < canvasWidth,
   );
 
-  enemyBulletsRef.current.forEach((eb) => (eb.x -= eb.speed));
-  enemyBulletsRef.current = enemyBulletsRef.current.filter((eb) => eb.x > -20);
+  enemyBulletsRef.current.forEach((eb) => {
+    eb.x -= eb.speed;
+    if (eb.vy) eb.y += eb.vy; // Support peluru menyebar / miring
+  });
+  enemyBulletsRef.current = enemyBulletsRef.current.filter(
+    (eb) => eb.x > -20 && eb.y > -20 && eb.y < canvasHeight + 20,
+  );
 
   const now = Date.now();
 
+  // 4. PERGERAKAN & POLA TEMBAKAN MUSUH INTERAKTIF
   enemiesRef.current.forEach((e) => {
+    // Inisialisasi offset gelombang jika belum ada
+    if (e.sineOffset === undefined) e.sineOffset = Math.random() * 100;
+
     if (e.type === "KAMIKAZE") {
+      // Kamikaze mengejar koordinat Y player secara agresif
       e.x -= e.speed;
-      if (e.y < player.y) e.y += 1.2;
-      if (e.y > player.y) e.y -= 1.2;
+      if (e.y < player.y) e.y += 1.5;
+      if (e.y > player.y) e.y -= 1.5;
     } else if (e.type === "BOSS") {
+      // Pergerakan Boss di area kanan
       if (e.x > canvasWidth - 160) {
         e.x -= e.speed;
       }
@@ -117,24 +127,68 @@ export function updateGameLogic(
       }
       e.y += (e.y < (e.targetY || 0) ? 1 : -1) * 1.5;
 
-      if (!e.lastShotTime || now - e.lastShotTime > 1000) {
+      // BOSS SHOOTING PATTERN
+      const bossShootInterval = Math.max(800, 1500 - currentStage * 20);
+      if (!e.lastShotTime || now - e.lastShotTime > bossShootInterval) {
+        // Tembakan 3 Arah Lurus + Menyebar
         enemyBulletsRef.current.push(
-          { x: e.x, y: e.y + 20, width: 14, height: 7, speed: 6 },
-          { x: e.x, y: e.y + e.height / 2, width: 14, height: 7, speed: 7 },
-          { x: e.x, y: e.y + e.height - 20, width: 14, height: 7, speed: 6 },
+          { x: e.x, y: e.y + 20, width: 14, height: 7, speed: 6, vy: -1 },
+          {
+            x: e.x,
+            y: e.y + e.height / 2,
+            width: 14,
+            height: 7,
+            speed: 7,
+            vy: 0,
+          },
+          {
+            x: e.x,
+            y: e.y + e.height - 20,
+            width: 14,
+            height: 7,
+            speed: 6,
+            vy: 1,
+          },
         );
         e.lastShotTime = now;
       }
     } else {
+      // MUSUH BIASA (NORMAL): GERAKAN GELOMBANG NAIK-TURUN HALUS
       e.x -= e.speed;
-      if (!e.lastShotTime || now - e.lastShotTime > 2000) {
-        enemyBulletsRef.current.push({
-          x: e.x,
-          y: e.y + e.height / 2 - 3,
-          width: 12,
-          height: 6,
-          speed: 5,
-        });
+      e.y += Math.sin(now * 0.003 + e.sineOffset) * 0.8;
+
+      // Jaga agar musuh tidak keluar batas atas/bawah layar
+      e.y = Math.max(10, Math.min(canvasHeight - e.height - 10, e.y));
+
+      // POLA TEMBAKAN MUSUH BIASA
+      // Frekuensi tembakan disesuaikan dengan Stage agar seimbang
+      const enemyShootInterval = Math.max(1600, 2800 - currentStage * 50);
+
+      if (!e.lastShotTime || now - e.lastShotTime > enemyShootInterval) {
+        // Jika musuh tipe Jet Tempur (variantIndex >= 4) & Stage >= 3: Double Spread Shot
+        if (e.variantIndex && e.variantIndex >= 4 && currentStage >= 3) {
+          enemyBulletsRef.current.push(
+            { x: e.x, y: e.y + 8, width: 12, height: 6, speed: 5.5, vy: -0.6 },
+            {
+              x: e.x,
+              y: e.y + e.height - 8,
+              width: 12,
+              height: 6,
+              speed: 5.5,
+              vy: 0.6,
+            },
+          );
+        } else {
+          // Single Straight Shot standar
+          enemyBulletsRef.current.push({
+            x: e.x,
+            y: e.y + e.height / 2 - 3,
+            width: 12,
+            height: 6,
+            speed: 5,
+            vy: 0,
+          });
+        }
         e.lastShotTime = now;
       }
     }
@@ -142,7 +196,7 @@ export function updateGameLogic(
 
   enemiesRef.current = enemiesRef.current.filter((e) => e.x + e.width > 0);
 
-  // 4. COLLISIONS (PELURU VS MUSUH)
+  // 5. TABRAKAN: PELURU PLAYER VS MUSUH
   playerBulletsRef.current.forEach((b, bIdx) => {
     enemiesRef.current.forEach((e, eIdx) => {
       if (
@@ -155,7 +209,7 @@ export function updateGameLogic(
         e.hp -= 1;
 
         if (e.hp <= 0) {
-          // SPAWN LEDAKAN & PLAY SFX EXPLOSION
+          // SPAWN LEDAKAN & SFX
           explosionsRef.current.push({
             x: e.x + e.width / 2,
             y: e.y + e.height / 2,
@@ -166,6 +220,36 @@ export function updateGameLogic(
             frameDuration: 40,
           });
           callbacks.playExplosion();
+
+          // SPESIAL: JIKA KAMIKAZE HANCUR, LEPASKAN SERPIHAN PECAHAN PELURU (DEATH BURST)
+          if (e.type === "KAMIKAZE") {
+            enemyBulletsRef.current.push(
+              {
+                x: e.x,
+                y: e.y + e.height / 2,
+                width: 8,
+                height: 8,
+                speed: 4,
+                vy: -1.5,
+              },
+              {
+                x: e.x,
+                y: e.y + e.height / 2,
+                width: 8,
+                height: 8,
+                speed: 4,
+                vy: 0,
+              },
+              {
+                x: e.x,
+                y: e.y + e.height / 2,
+                width: 8,
+                height: 8,
+                speed: 4,
+                vy: 1.5,
+              },
+            );
+          }
 
           enemiesRef.current.splice(eIdx, 1);
           gameState.current.score +=
@@ -179,7 +263,6 @@ export function updateGameLogic(
             callbacks.setStage(stageRef.current.currentStage);
             callbacks.setStageProgress(0);
             callbacks.setIsBossStage(false);
-
             callbacks.playNormalBGM();
           } else {
             stageRef.current.killsInStage += 1;
@@ -207,7 +290,7 @@ export function updateGameLogic(
     });
   });
 
-  // COLLISIONS (MUSUH / PELURU VS PLAYER)
+  // 6. TABRAKAN: MUSUH / PELURU MUSUH VS PLAYER
   enemiesRef.current.forEach((e, eIdx) => {
     const hitPlayer =
       player.x < e.x + e.width &&
@@ -229,8 +312,6 @@ export function updateGameLogic(
       if (e.type !== "BOSS") enemiesRef.current.splice(eIdx, 1);
       player.hp -= e.type === "KAMIKAZE" ? 2 : 1;
       callbacks.setPlayerHp(player.hp);
-
-      // PLAY SFX PLAYER HIT
       callbacks.playPlayerHit();
     }
   });
@@ -246,13 +327,11 @@ export function updateGameLogic(
       enemyBulletsRef.current.splice(ebIdx, 1);
       player.hp -= 1;
       callbacks.setPlayerHp(player.hp);
-
-      // PLAY SFX PLAYER HIT
       callbacks.playPlayerHit();
     }
   });
 
-  // UPDATE FRAME LEDAKAN
+  // 7. UPDATE FRAME LEDAKAN
   explosionsRef.current.forEach((exp) => {
     if (now - exp.lastFrameTime > exp.frameDuration) {
       exp.currentFrame += 1;
@@ -269,7 +348,7 @@ export function updateGameLogic(
   }
 }
 
-// AUTOPILOT CINEMATIC BACKGROUND
+// 8. LOGIKA AUTOPILOT CINEMATIC BACKGROUND (HIGHSCORE MODAL)
 export function updateAutopilotLogic(
   timestamp: number,
   canvasWidth: number,
@@ -300,16 +379,18 @@ export function updateAutopilotLogic(
     lastShotTimeRef.current = timestamp;
   }
 
-  if (enemiesRef.current.length < 2 && Math.random() < 0.03) {
+  if (enemiesRef.current.length < 3 && Math.random() < 0.04) {
     enemiesRef.current.push({
       type: "NORMAL",
       x: canvasWidth,
       y: Math.random() * (canvasHeight - 80),
-      width: 50,
-      height: 35,
+      width: 55,
+      height: 38,
       speed: 3,
       hp: 1,
       maxHp: 1,
+      variantIndex: Math.floor(Math.random() * 8),
+      sineOffset: Math.random() * 100,
     });
   }
 
@@ -318,7 +399,10 @@ export function updateAutopilotLogic(
     (b) => b.x < canvasWidth,
   );
 
-  enemiesRef.current.forEach((e) => (e.x -= e.speed));
+  enemiesRef.current.forEach((e) => {
+    e.x -= e.speed;
+    e.y += Math.sin(now * 0.003 + (e.sineOffset || 0)) * 0.8;
+  });
 
   playerBulletsRef.current.forEach((b, bIdx) => {
     enemiesRef.current.forEach((e, eIdx) => {

@@ -74,8 +74,19 @@ export function renderGame(
     ctx.scale(-1, 1);
 
     let currentImg = assets.enemyImg;
-    if (e.type === "KAMIKAZE") currentImg = assets.kamikazeImg;
-    if (e.type === "BOSS") currentImg = assets.bossImg;
+
+    if (e.type === "BOSS") {
+      currentImg = assets.bossImg;
+    } else if (
+      e.variantIndex !== undefined &&
+      assets.enemyVariants[e.variantIndex] &&
+      assets.enemyVariants[e.variantIndex].complete &&
+      assets.enemyVariants[e.variantIndex].naturalWidth !== 0
+    ) {
+      currentImg = assets.enemyVariants[e.variantIndex];
+    } else if (e.type === "KAMIKAZE") {
+      currentImg = assets.kamikazeImg;
+    }
 
     if (e.type === "KAMIKAZE") {
       ctx.shadowColor = "#ef4444";

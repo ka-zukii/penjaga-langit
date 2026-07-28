@@ -26,11 +26,16 @@ export type Enemy = GameObject & {
   type: EnemyType;
   hp: number;
   maxHp: number;
+  variantIndex?: number;
   lastShotTime?: number;
   targetY?: number;
+  sineOffset?: number;
 };
 
-export type Bullet = GameObject;
+export type Bullet = GameObject & {
+  vy?: number;
+  isEnemy?: boolean;
+};
 
 export type Explosion = {
   x: number;

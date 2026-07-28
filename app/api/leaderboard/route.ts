@@ -11,12 +11,12 @@ import {
 } from "firebase/firestore";
 import { ScoreEntry } from "@/types/game";
 
-// GET: Ambil Top 10 Skor Tertinggi
+// GET: Ambil Top 100 Skor Tertinggi
 export async function GET() {
   try {
     const leaderboardRef = collection(db, "leaderboard");
-    // Query: urutkan dari score terbanyak, ambil top 10
-    const q = query(leaderboardRef, orderBy("score", "desc"), limit(10));
+    // Query: urutkan dari skor terbanyak, ambil top 100
+    const q = query(leaderboardRef, orderBy("score", "desc"), limit(100));
     const querySnapshot = await getDocs(q);
 
     const scores: ScoreEntry[] = [];
@@ -31,7 +31,11 @@ export async function GET() {
       });
     });
 
-    return NextResponse.json(scores);
+    return NextResponse.json(scores, {
+      headers: {
+        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=59",
+      },
+    });
   } catch (error) {
     console.error("Firebase GET Error:", error);
     return NextResponse.json(
