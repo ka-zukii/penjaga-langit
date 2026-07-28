@@ -59,7 +59,7 @@ Pastikan kamu telah menginstal Node.js (versi 18.x atau yang lebih baru).
 ### 2. Clone Repository
 
 ```bash
-git clone [https://github.com/username/penjaga-langit.git](https://github.com/username/penjaga-langit.git)
+git clone [https://github.com/ka-zukii/penjaga-langit.git](https://github.com/ka-zukii/penjaga-langit.git)
 cd penjaga-langit
 ```
 
