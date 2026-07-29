@@ -119,7 +119,7 @@ export function MobileControls({ gameMode }: MobileControlsProps) {
         </div>
       </div>
 
-      {/* 🎯 TOMBOL TEMBAK (KHUSUS MOBILE/TABLET) */}
+      {/* TOMBOL TEMBAK (KHUSUS MOBILE/TABLET) */}
       <div className="pointer-events-auto mb-0.5 mr-0.5">
         <button
           onTouchStart={() => setKeyState("Space", true)}

@@ -43,7 +43,7 @@ export function updateGameLogic(
   const player = playerRef.current;
   const currentStage = stageRef.current.currentStage;
 
-  // 1. KONTROL GERAKAN PLAYER
+  // 1. KONTROL & BATASAN GERAKAN PLAYER (BOUNDING BOX LOCK)
   let targetRotation = 0;
   const isUp =
     settingsRef.current.controlType === "WASD" ? keys["KeyW"] : keys["ArrowUp"];
@@ -60,20 +60,31 @@ export function updateGameLogic(
       ? keys["KeyD"]
       : keys["ArrowRight"];
 
-  if (isUp && player.y > 0) {
+  if (isUp) {
     player.y -= player.speed;
     targetRotation = -18 * (Math.PI / 180);
   }
-  if (isDown && player.y < canvasHeight - player.height) {
+  if (isDown) {
     player.y += player.speed;
     targetRotation = 18 * (Math.PI / 180);
   }
-  if (isLeft && player.x > 0) {
+  if (isLeft) {
     player.x -= player.speed;
   }
-  if (isRight && player.x < canvasWidth - player.width) {
+  if (isRight) {
     player.x += player.speed;
   }
+
+  // 🛑 CLAMP PLAYER AGAR 100% TIDAK BISA KELUAR LAYAR (TETAP TERLIHAT PENUH)
+  const padding = 5; // Margin tipis dari pinggir canvas
+  player.x = Math.max(
+    padding,
+    Math.min(canvasWidth - player.width - padding, player.x),
+  );
+  player.y = Math.max(
+    padding,
+    Math.min(canvasHeight - player.height - padding, player.y),
+  );
 
   player.rotation = player.rotation || 0;
   player.rotation += (targetRotation - player.rotation) * 0.25;
@@ -99,7 +110,7 @@ export function updateGameLogic(
 
   enemyBulletsRef.current.forEach((eb) => {
     eb.x -= eb.speed;
-    if (eb.vy) eb.y += eb.vy; // Support peluru menyebar / miring
+    if (eb.vy) eb.y += eb.vy;
   });
   enemyBulletsRef.current = enemyBulletsRef.current.filter(
     (eb) => eb.x > -20 && eb.y > -20 && eb.y < canvasHeight + 20,
@@ -107,30 +118,34 @@ export function updateGameLogic(
 
   const now = Date.now();
 
-  // 4. PERGERAKAN & POLA TEMBAKAN MUSUH INTERAKTIF
+  // 4. PERGERAKAN & BATASAN MUSUH
   enemiesRef.current.forEach((e) => {
-    // Inisialisasi offset gelombang jika belum ada
     if (e.sineOffset === undefined) e.sineOffset = Math.random() * 100;
 
     if (e.type === "KAMIKAZE") {
-      // Kamikaze mengejar koordinat Y player secara agresif
       e.x -= e.speed;
       if (e.y < player.y) e.y += 1.5;
       if (e.y > player.y) e.y -= 1.5;
+
+      // Batasi Kamikaze agar tetap di dalam layar saat mengejar Y
+      e.y = Math.max(10, Math.min(canvasHeight - e.height - 10, e.y));
     } else if (e.type === "BOSS") {
-      // Pergerakan Boss di area kanan
+      // Pergerakan Boss di sisi kanan (tidak melewati tengah ke kiri)
       if (e.x > canvasWidth - 160) {
         e.x -= e.speed;
       }
+
       if (Math.abs(e.y - (e.targetY || 0)) < 10) {
-        e.targetY = Math.random() * (canvasHeight - e.height);
+        e.targetY = Math.random() * (canvasHeight - e.height - 20) + 10;
       }
       e.y += (e.y < (e.targetY || 0) ? 1 : -1) * 1.5;
 
-      // BOSS SHOOTING PATTERN
+      // Clamp Boss di dalam batas vertikal
+      e.y = Math.max(10, Math.min(canvasHeight - e.height - 10, e.y));
+
+      // POLA TEMBAKAN BOSS
       const bossShootInterval = Math.max(800, 1500 - currentStage * 20);
       if (!e.lastShotTime || now - e.lastShotTime > bossShootInterval) {
-        // Tembakan 3 Arah Lurus + Menyebar
         enemyBulletsRef.current.push(
           { x: e.x, y: e.y + 20, width: 14, height: 7, speed: 6, vy: -1 },
           {
@@ -153,19 +168,16 @@ export function updateGameLogic(
         e.lastShotTime = now;
       }
     } else {
-      // MUSUH BIASA (NORMAL): GERAKAN GELOMBANG NAIK-TURUN HALUS
+      // MUSUH BIASA (NORMAL)
       e.x -= e.speed;
       e.y += Math.sin(now * 0.003 + e.sineOffset) * 0.8;
 
-      // Jaga agar musuh tidak keluar batas atas/bawah layar
+      // 🛑 CLAMP MUSUH BIASA AGAR TIDAK LEWAT ATAS/BAWAH LAYAR
       e.y = Math.max(10, Math.min(canvasHeight - e.height - 10, e.y));
 
       // POLA TEMBAKAN MUSUH BIASA
-      // Frekuensi tembakan disesuaikan dengan Stage agar seimbang
       const enemyShootInterval = Math.max(1600, 2800 - currentStage * 50);
-
       if (!e.lastShotTime || now - e.lastShotTime > enemyShootInterval) {
-        // Jika musuh tipe Jet Tempur (variantIndex >= 4) & Stage >= 3: Double Spread Shot
         if (e.variantIndex && e.variantIndex >= 4 && currentStage >= 3) {
           enemyBulletsRef.current.push(
             { x: e.x, y: e.y + 8, width: 12, height: 6, speed: 5.5, vy: -0.6 },
@@ -179,7 +191,6 @@ export function updateGameLogic(
             },
           );
         } else {
-          // Single Straight Shot standar
           enemyBulletsRef.current.push({
             x: e.x,
             y: e.y + e.height / 2 - 3,
@@ -194,6 +205,7 @@ export function updateGameLogic(
     }
   });
 
+  // Hapus musuh yang sudah lewat jauh ke kiri
   enemiesRef.current = enemiesRef.current.filter((e) => e.x + e.width > 0);
 
   // 5. TABRAKAN: PELURU PLAYER VS MUSUH
@@ -209,7 +221,6 @@ export function updateGameLogic(
         e.hp -= 1;
 
         if (e.hp <= 0) {
-          // SPAWN LEDAKAN & SFX
           explosionsRef.current.push({
             x: e.x + e.width / 2,
             y: e.y + e.height / 2,
@@ -221,7 +232,6 @@ export function updateGameLogic(
           });
           callbacks.playExplosion();
 
-          // SPESIAL: JIKA KAMIKAZE HANCUR, LEPASKAN SERPIHAN PECAHAN PELURU (DEATH BURST)
           if (e.type === "KAMIKAZE") {
             enemyBulletsRef.current.push(
               {
@@ -331,7 +341,7 @@ export function updateGameLogic(
     }
   });
 
-  // 7. UPDATE FRAME LEDAKAN
+  // 7. LEDAKAN FRAME UPDATE
   explosionsRef.current.forEach((exp) => {
     if (now - exp.lastFrameTime > exp.frameDuration) {
       exp.currentFrame += 1;
@@ -348,7 +358,7 @@ export function updateGameLogic(
   }
 }
 
-// 8. LOGIKA AUTOPILOT CINEMATIC BACKGROUND (HIGHSCORE MODAL)
+// 8. AUTOPILOT CINEMATIC LOGIC
 export function updateAutopilotLogic(
   timestamp: number,
   canvasWidth: number,
@@ -402,6 +412,7 @@ export function updateAutopilotLogic(
   enemiesRef.current.forEach((e) => {
     e.x -= e.speed;
     e.y += Math.sin(now * 0.003 + (e.sineOffset || 0)) * 0.8;
+    e.y = Math.max(10, Math.min(canvasHeight - e.height - 10, e.y));
   });
 
   playerBulletsRef.current.forEach((b, bIdx) => {
