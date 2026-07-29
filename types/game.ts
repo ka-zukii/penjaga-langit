@@ -54,3 +54,14 @@ export type ScoreEntry = {
   stage: number;
   date: string;
 };
+
+export type DropItem = {
+  id: string;
+  type: "HEAL";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  speedY: number;
+  swingOffset: number;
+};

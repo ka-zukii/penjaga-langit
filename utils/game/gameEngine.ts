@@ -1,4 +1,11 @@
-import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
+import {
+  Bullet,
+  DropItem,
+  Enemy,
+  Explosion,
+  GameStateUI,
+  Player,
+} from "@/types/game";
 
 type StageState = {
   currentStage: number;
@@ -22,6 +29,7 @@ export function updateGameLogic(
   enemyBulletsRef: { current: Bullet[] },
   enemiesRef: { current: Enemy[] },
   explosionsRef: { current: Explosion[] },
+  dropItemsRef: { current: DropItem[] },
   keys: { [key: string]: boolean },
   settingsRef: { current: GameSettings },
   stageRef: { current: StageState },
@@ -42,6 +50,8 @@ export function updateGameLogic(
 ) {
   const player = playerRef.current;
   const currentStage = stageRef.current.currentStage;
+
+  const now = Date.now();
 
   // 1. KONTROL & BATASAN GERAKAN PLAYER (BOUNDING BOX LOCK)
   let targetRotation = 0;
@@ -116,7 +126,35 @@ export function updateGameLogic(
     (eb) => eb.x > -20 && eb.y > -20 && eb.y < canvasHeight + 20,
   );
 
-  const now = Date.now();
+  // LOGIKA PERGERAKAN & SWING PARASUT
+  if (dropItemsRef.current) {
+    dropItemsRef.current.forEach((item) => {
+      item.y += item.speedY; // Meluncur turun
+      item.x += Math.sin(now * 0.003 + item.swingOffset) * 0.8; // Meliuk kiri-kanan
+    });
+
+    // Hapus item yang lewat dari bawah layar
+    dropItemsRef.current = dropItemsRef.current.filter(
+      (item) => item.y < canvasHeight + 40,
+    );
+
+    // TABRAKAN PLAYER VS DROP ITEM (AMBIL NYAWA)
+    dropItemsRef.current.forEach((item, itemIdx) => {
+      const hitPlayer =
+        player.x < item.x + item.width &&
+        player.x + player.width > item.x &&
+        player.y < item.y + item.height &&
+        player.y + player.height > item.y;
+
+      if (hitPlayer) {
+        if (item.type === "HEAL") {
+          player.hp = Math.min(player.maxHp, player.hp + 1); // Tambah +1 HP (Maksimal 3)
+          callbacks.setPlayerHp(player.hp);
+        }
+        dropItemsRef.current.splice(itemIdx, 1);
+      }
+    });
+  }
 
   // 4. PERGERAKAN & BATASAN MUSUH
   enemiesRef.current.forEach((e) => {
@@ -231,6 +269,23 @@ export function updateGameLogic(
             frameDuration: 40,
           });
           callbacks.playExplosion();
+
+          if (
+            dropItemsRef.current &&
+            Math.random() < 0.2 &&
+            player.hp < player.maxHp
+          ) {
+            dropItemsRef.current.push({
+              id: Math.random().toString(),
+              type: "HEAL",
+              x: e.x + e.width / 2 - 10,
+              y: e.y,
+              width: 20,
+              height: 20,
+              speedY: 1.2,
+              swingOffset: Math.random() * 100,
+            });
+          }
 
           if (e.type === "KAMIKAZE") {
             enemyBulletsRef.current.push(

@@ -1,6 +1,86 @@
-import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
+import {
+  Bullet,
+  DropItem,
+  Enemy,
+  Explosion,
+  GameStateUI,
+  Player,
+} from "@/types/game";
 import { ParallaxLayer } from "@/utils/ParallaxLayer";
 import { GameAssets } from "./assetLoader";
+
+// FUNGSI KHUSUS MENGGAMBAR PARASUT & ITEM NYAWA (CANVAS VECTOR 2D)
+export function renderDropItems(
+  ctx: CanvasRenderingContext2D,
+  dropItems: DropItem[],
+) {
+  if (!dropItems || dropItems.length === 0) return;
+
+  dropItems.forEach((item) => {
+    ctx.save();
+
+    const time = Date.now() * 0.003 + item.swingOffset;
+    const tiltAngle = Math.cos(time) * 0.15; // Efek parasut miring saat bergoyang
+
+    ctx.translate(item.x + item.width / 2, item.y);
+    ctx.rotate(tiltAngle);
+
+    // 1. KUBAH PARASUT
+    ctx.beginPath();
+    ctx.arc(0, -16, 18, Math.PI, 0, false);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#38bdf8";
+    ctx.stroke();
+
+    // Lipatan Parasut
+    ctx.beginPath();
+    ctx.moveTo(0, -34);
+    ctx.lineTo(0, -16);
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.6)";
+    ctx.stroke();
+
+    // 2. TALI PARASUT
+    ctx.beginPath();
+    ctx.moveTo(-16, -16);
+    ctx.lineTo(-4, 0);
+
+    ctx.moveTo(16, -16);
+    ctx.lineTo(4, 0);
+
+    ctx.moveTo(0, -16);
+    ctx.lineTo(0, 0);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 3. KOTAK ITEM NYAWA BERSINAR (HEAL)
+    ctx.shadowColor = "#ef4444";
+    ctx.shadowBlur = 10;
+
+    // Kotak Kontainer
+    ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+    ctx.strokeStyle = "#f43f5e";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(-10, 0, 20, 20, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    // Simbol Hati Merah
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath();
+    ctx.arc(-3, 7, 3, Math.PI, 0, false);
+    ctx.arc(3, 7, 3, Math.PI, 0, false);
+    ctx.lineTo(0, 14);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  });
+}
 
 export function renderGame(
   ctx: CanvasRenderingContext2D,
@@ -14,6 +94,7 @@ export function renderGame(
   enemyBullets: Bullet[],
   enemies: Enemy[],
   explosions: Explosion[],
+  dropItems: DropItem[] = [],
 ) {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -117,6 +198,9 @@ export function renderGame(
       ctx.strokeRect(e.x, e.y - 14, e.width, 7);
     }
   });
+
+  // 4. Render Drop Items Parasut
+  renderDropItems(ctx, dropItems);
 
   // Player Aircraft
   if (assets.playerImg.complete && assets.playerImg.naturalWidth !== 0) {

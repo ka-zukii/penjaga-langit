@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Bullet, Enemy, Explosion, GameStateUI, Player } from "@/types/game";
+import {
+  Bullet,
+  DropItem,
+  Enemy,
+  Explosion,
+  GameStateUI,
+  Player,
+} from "@/types/game";
 import { ParallaxLayer } from "@/utils/ParallaxLayer";
 import { AudioManager } from "@/utils/AudioManager";
 import {
@@ -82,6 +89,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
   const enemyBulletsRef = useRef<Bullet[]>([]);
   const enemiesRef = useRef<Enemy[]>([]);
   const explosionsRef = useRef<Explosion[]>([]);
+  const dropItemsRef = useRef<DropItem[]>([]);
   const lastShotTimeRef = useRef<number>(0);
 
   // HANDLER PENGATURAN SUARA & KONTROL
@@ -129,6 +137,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
     enemyBulletsRef.current = [];
     enemiesRef.current = [];
     explosionsRef.current = [];
+    dropItemsRef.current = [];
 
     setScore(0);
     setPlayerHp(3);
@@ -316,6 +325,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
           enemyBulletsRef,
           enemiesRef,
           explosionsRef,
+          dropItemsRef,
           keys,
           settingsRef,
           stageRef,
@@ -348,6 +358,7 @@ export function usePenjagaLangit(canvasWidth = 800, canvasHeight = 450) {
         enemyBulletsRef.current,
         enemiesRef.current,
         explosionsRef.current,
+        dropItemsRef.current,
       );
 
       animationFrameId = requestAnimationFrame(gameLoop);
